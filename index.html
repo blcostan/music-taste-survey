@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js for Data Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet.js for Interactive Bubble Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts: Inter & Plus Jakarta Sans -->
@@ -70,6 +73,25 @@
         .eq-bar:nth-child(2) { animation: pulse-eq 0.6s ease-in-out infinite 0.2s; }
         .eq-bar:nth-child(3) { animation: pulse-eq 1.1s ease-in-out infinite 0.1s; }
         .eq-bar:nth-child(4) { animation: pulse-eq 0.7s ease-in-out infinite 0.3s; }
+
+        /* Leaflet Popup & Map Theme Overrides */
+        #listenerBubbleMap {
+            z-index: 10;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 14px !important;
+            padding: 2px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35) !important;
+        }
+        .dark .leaflet-popup-content-wrapper,
+        .dark .leaflet-popup-tip {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border: 1px solid #1e293b;
+        }
+        .leaflet-container {
+            font-family: 'Inter', sans-serif !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
@@ -419,6 +441,42 @@
                 </div>
             </div>
 
+            <!-- Global Listener Bubble Map (Most Popular Genre by Location) -->
+            <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h3 class="font-display font-bold text-base sm:text-lg flex items-center gap-2">
+                            <i data-lucide="map-pinned" class="w-5 h-5 text-brand-500"></i>
+                            <span>Global Listener Bubble Map</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Bubble size reflects listener count per location; color indicates the #1 most popular genre in that area. Click any bubble for details.
+                        </p>
+                    </div>
+                    <span id="mapLocationCountBadge" class="self-start sm:self-auto px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        0 locations plotted
+                    </span>
+                </div>
+
+                <!-- Leaflet Map Container -->
+                <div class="relative w-full h-[360px] sm:h-[430px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950">
+                    <div id="listenerBubbleMap" class="w-full h-full"></div>
+
+                    <!-- Empty Map Overlay -->
+                    <div id="mapEmptyOverlay" class="hidden absolute inset-0 z-20 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 pointer-events-none">
+                        <div class="bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 px-5 py-3.5 rounded-2xl shadow-xl text-center max-w-xs">
+                            <p class="font-display font-bold text-sm text-slate-900 dark:text-white">No locations to plot yet</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Submit a survey response to light up your city on the world map.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Genre Color Legend -->
+                <div id="mapGenreLegend" class="mt-4 pt-3 border-t border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
             <!-- Charts Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Chart 1: Overall Genre Popularity -->
@@ -596,31 +654,88 @@
     <!-- ==================== JAVASCRIPT LOGIC ==================== -->
     <script>
         // --- 1. CONSTANTS & CONFIGURATION ---
-        const STORAGE_KEY = 'sonicpulse_survey_responses_v2';
+        const STORAGE_KEY = 'sonicpulse_survey_responses_v3';
+        const GEOCODE_CACHE_KEY = 'sonicpulse_geocode_cache_v1';
         const WEBHOOK_KEY = 'sonicpulse_webhook_url_v1';
         const THEME_KEY = 'sonicpulse_theme_v1';
 
         const MUSIC_GENRES = [
-            { id: 'pop', label: 'Pop', icon: '✨' },
-            { id: 'hiphop', label: 'Hip-Hop / Rap', icon: '🎤' },
-            { id: 'rock', label: 'Rock', icon: '🎸' },
-            { id: 'indie', label: 'Indie / Alternative', icon: '🎧' },
-            { id: 'electronic', label: 'Electronic / EDM', icon: '🎛️' },
-            { id: 'rnb', label: 'R&B / Soul', icon: '💜' },
-            { id: 'country', label: 'Country', icon: '🤠' },
-            { id: 'jazz', label: 'Jazz', icon: '🎷' },
-            { id: 'classical', label: 'Classical', icon: '🎻' },
-            { id: 'metal', label: 'Metal', icon: '🤘' },
-            { id: 'latin', label: 'Latin', icon: '💃' },
-            { id: 'kpop', label: 'K-Pop', icon: '🫰' },
-            { id: 'afrobeats', label: 'Afrobeats', icon: '🥁' },
-            { id: 'folk', label: 'Folk / Acoustic', icon: '🪕' },
-            { id: 'reggae', label: 'Reggae / Dancehall', icon: '🌴' }
+            { id: 'pop', label: 'Pop', icon: '✨', color: '#ec4899' },
+            { id: 'hiphop', label: 'Hip-Hop / Rap', icon: '🎤', color: '#f59e0b' },
+            { id: 'rock', label: 'Rock', icon: '🎸', color: '#ef4444' },
+            { id: 'indie', label: 'Indie / Alternative', icon: '🎧', color: '#8b5cf6' },
+            { id: 'electronic', label: 'Electronic / EDM', icon: '🎛️', color: '#06b6d4' },
+            { id: 'rnb', label: 'R&B / Soul', icon: '💜', color: '#a855f7' },
+            { id: 'country', label: 'Country', icon: '🤠', color: '#d97706' },
+            { id: 'jazz', label: 'Jazz', icon: '🎷', color: '#3b82f6' },
+            { id: 'classical', label: 'Classical', icon: '🎻', color: '#6366f1' },
+            { id: 'metal', label: 'Metal', icon: '🤘', color: '#64748b' },
+            { id: 'latin', label: 'Latin', icon: '💃', color: '#f97316' },
+            { id: 'kpop', label: 'K-Pop', icon: '🫰', color: '#f43f5e' },
+            { id: 'afrobeats', label: 'Afrobeats', icon: '🥁', color: '#10b981' },
+            { id: 'folk', label: 'Folk / Acoustic', icon: '🪕', color: '#84cc16' },
+            { id: 'reggae', label: 'Reggae / Dancehall', icon: '🌴', color: '#14b8a6' }
         ];
+
+        const GENRE_COLOR_MAP = Object.fromEntries(MUSIC_GENRES.map(g => [g.label, g.color]));
+
+        // Built-in dictionary of major global cities & countries for instant zero-latency geocoding
+        const BUILTIN_COORDS = {
+            'new york': [40.7128, -74.0060], 'los angeles': [34.0522, -118.2437], 'chicago': [41.8781, -87.6298],
+            'houston': [29.7604, -95.3698], 'phoenix': [33.4484, -112.0740], 'philadelphia': [39.9526, -75.1652],
+            'san antonio': [29.4241, -98.4936], 'san diego': [32.7157, -117.1611], 'dallas': [32.7767, -96.7970],
+            'austin': [30.2672, -97.7431], 'san francisco': [37.7749, -122.4194], 'seattle': [47.6062, -122.3321],
+            'denver': [39.7392, -104.9903], 'boston': [42.3601, -71.0589], 'nashville': [36.1627, -86.7816],
+            'atlanta': [33.7490, -84.3880], 'miami': [25.7617, -80.1918], 'raleigh': [35.7796, -78.6382],
+            'washington': [38.9072, -77.0369], 'portland': [45.5152, -122.6784], 'detroit': [42.3314, -83.0458],
+            'minneapolis': [44.9778, -93.2650], 'toronto': [43.6532, -79.3832], 'vancouver': [49.2827, -123.1207],
+            'montreal': [45.5017, -73.5673], 'calgary': [51.0447, -114.0719], 'ottawa': [45.4215, -75.6972],
+            'mexico city': [19.4326, -99.1332], 'guadalajara': [20.6597, -103.3496], 'bogota': [4.7110, -74.0721],
+            'medellin': [6.2442, -75.5812], 'lima': [-12.0464, -77.0428], 'santiago': [-33.4489, -70.6693],
+            'buenos aires': [-34.6037, -58.3816], 'sao paulo': [-23.5505, -46.6333], 'rio de janeiro': [-22.9068, -43.1729],
+            'san juan': [18.4655, -66.1057], 'havana': [23.1136, -82.3666],
+            'london': [51.5074, -0.1278], 'manchester': [53.4808, -2.2426], 'edinburgh': [55.9533, -3.1883],
+            'dublin': [53.3498, -6.2603], 'paris': [48.8566, 2.3522], 'lyon': [45.7640, 4.8357],
+            'berlin': [52.5200, 13.4050], 'munich': [48.1351, 11.5820], 'hamburg': [53.5511, 9.9937],
+            'amsterdam': [52.3676, 4.9041], 'brussels': [50.8503, 4.3517], 'madrid': [40.4168, -3.7038],
+            'barcelona': [41.3851, 2.1734], 'lisbon': [38.7223, -9.1393], 'rome': [41.9028, 12.4964],
+            'milan': [45.4642, 9.1900], 'zurich': [47.3769, 8.5417], 'vienna': [48.2082, 16.3738],
+            'prague': [50.0755, 14.4378], 'warsaw': [52.2297, 21.0122], 'stockholm': [59.3293, 18.0686],
+            'oslo': [59.9139, 10.7522], 'copenhagen': [55.6761, 12.5683], 'helsinki': [60.1699, 24.9384],
+            'athens': [37.9838, 23.7275], 'istanbul': [41.0082, 28.9784],
+            'tokyo': [35.6762, 139.6503], 'osaka': [34.6937, 135.5023], 'seoul': [37.5665, 126.9780],
+            'beijing': [39.9042, 116.4074], 'shanghai': [31.2304, 121.4737], 'hong kong': [22.3193, 114.1694],
+            'taipei': [25.0330, 121.5654], 'singapore': [1.3521, 103.8198], 'bangkok': [13.7563, 100.5018],
+            'manila': [14.5995, 120.9842], 'jakarta': [-6.2088, 106.8456], 'kuala lumpur': [3.1390, 101.6869],
+            'mumbai': [19.0760, 72.8777], 'delhi': [28.7041, 77.1025], 'bengaluru': [12.9716, 77.5946],
+            'sydney': [-33.8688, 151.2093], 'melbourne': [-37.8136, 144.9631], 'auckland': [-36.8485, 174.7633],
+            'lagos': [6.5244, 3.3792], 'cairo': [30.0444, 31.2357], 'nairobi': [-1.2921, 36.8219],
+            'johannesburg': [-26.2041, 28.0473], 'cape town': [-33.9249, 18.4241], 'accra': [5.6037, -0.1870],
+            'casablanca': [33.5731, -7.5898], 'dubai': [25.2048, 55.2708], 'riyadh': [24.7136, 46.6753],
+            'tel aviv': [32.0853, 34.7818],
+            // Country-level fallbacks
+            'usa': [39.8283, -98.5795], 'united states': [39.8283, -98.5795], 'canada': [56.1304, -106.3468],
+            'uk': [55.3781, -3.4360], 'united kingdom': [55.3781, -3.4360], 'germany': [51.1657, 10.4515],
+            'france': [46.2276, 2.2137], 'spain': [40.4637, -3.7492], 'italy': [41.8719, 12.5674],
+            'japan': [36.2048, 138.2529], 'south korea': [35.9078, 127.7669], 'india': [20.5937, 78.9629],
+            'australia': [-25.2744, 133.7751], 'brazil': [-14.2350, -51.9253], 'mexico': [23.6345, -102.5528],
+            'nigeria': [9.0820, 8.6753], 'south africa': [-30.5595, 22.9375]
+        };
+
+        const REGION_FALLBACK_COORDS = {
+            'North America': [39.8283, -98.5795],
+            'Europe': [50.1109, 10.4515],
+            'Asia-Pacific': [22.3193, 114.1694],
+            'Latin America & Caribbean': [-14.2350, -58.9253],
+            'Middle East & Africa': [6.5244, 21.3792]
+        };
 
         // State Variables
         let responses = [];
         let charts = {};
+        let leafletMap = null;
+        let mapTileLayer = null;
+        let mapBubbleLayer = null;
 
         // --- 2. INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -647,11 +762,12 @@
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
             if (!document.getElementById('dashboardView').classList.contains('hidden')) {
+                updateMapTileTheme();
                 updateDashboard();
             }
         }
 
-        // --- 4. DATA PERSISTENCE ---
+        // --- 4. DATA PERSISTENCE & GEOCODING ---
         function loadResponses() {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
@@ -665,6 +781,7 @@
             } catch (e) {
                 console.error('Error reading localStorage:', e);
             }
+            // Start cleanly with 0 respondents
             responses = [];
             saveResponses();
         }
@@ -688,6 +805,88 @@
             saveResponses();
             updateDashboard();
             showToast('All survey data cleared.', 'info');
+        }
+
+        function getGeocodeCache() {
+            try {
+                return JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveGeocodeCache(cache) {
+            try {
+                localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(cache));
+            } catch (e) {
+                console.warn('Could not persist geocode cache:', e);
+            }
+        }
+
+        function lookupBuiltinCoords(locationStr) {
+            const normalized = locationStr.toLowerCase().trim();
+            if (BUILTIN_COORDS[normalized]) return BUILTIN_COORDS[normalized];
+
+            // Split "City, Country" and check parts
+            const parts = normalized.split(',').map(p => p.trim()).filter(Boolean);
+            for (const part of parts) {
+                if (BUILTIN_COORDS[part]) return BUILTIN_COORDS[part];
+            }
+            return null;
+        }
+
+        function getJitteredRegionCoords(region, seedStr) {
+            const base = REGION_FALLBACK_COORDS[region] || [20, 0];
+            // Deterministic slight offset based on location string so different towns don't overlap identically
+            let hash = 0;
+            for (let i = 0; i < seedStr.length; i++) {
+                hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                hash |= 0;
+            }
+            const latOffset = ((hash % 100) / 100) * 4;
+            const lngOffset = (((hash >> 4) % 100) / 100) * 6;
+            return [base[0] + latOffset, base[1] + lngOffset];
+        }
+
+        async function resolveLocationCoords(locationStr, region) {
+            const key = locationStr.toLowerCase().trim();
+            const cache = getGeocodeCache();
+            if (cache[key] && Array.isArray(cache[key])) {
+                return cache[key];
+            }
+
+            // 1. Instant dictionary lookup
+            const builtin = lookupBuiltinCoords(locationStr);
+            if (builtin) {
+                cache[key] = builtin;
+                saveGeocodeCache(cache);
+                return builtin;
+            }
+
+            // 2. Free OpenStreetMap Nominatim lookup (no API key required)
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                const resp = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locationStr)}`,
+                    { signal: controller.signal }
+                );
+                clearTimeout(timeoutId);
+                if (resp.ok) {
+                    const results = await resp.json();
+                    if (Array.isArray(results) && results.length > 0) {
+                        const coords = [parseFloat(results[0].lat), parseFloat(results[0].lon)];
+                        cache[key] = coords;
+                        saveGeocodeCache(cache);
+                        return coords;
+                    }
+                }
+            } catch (err) {
+                console.warn('Nominatim lookup skipped/timed out, using region fallback:', err);
+            }
+
+            // 3. Fallback to Geographic Region center with deterministic jitter
+            return getJitteredRegionCoords(region, locationStr);
         }
 
         // --- 5. UI NAVIGATION & MODALS ---
@@ -714,7 +913,13 @@
                 dashboardBtn.classList.remove(...inactiveClasses);
                 surveyBtn.classList.remove(...activeClasses);
                 surveyBtn.classList.add(...inactiveClasses);
+
+                initBubbleMap();
                 updateDashboard();
+                // Ensure Leaflet recalculates dimensions once container becomes visible
+                setTimeout(() => {
+                    if (leafletMap) leafletMap.invalidateSize();
+                }, 60);
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -799,6 +1004,7 @@
             document.getElementById('musicSurveyForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
 
+                const submitBtn = document.getElementById('submitSurveyBtn');
                 const location = document.getElementById('locationInput').value.trim();
                 const region = document.getElementById('regionSelect').value;
                 const selectedGenderRadio = document.querySelector('input[name="genderIdentity"]:checked');
@@ -840,42 +1046,53 @@
                     return;
                 }
 
-                const newEntry = {
-                    id: 'resp_' + Date.now(),
-                    location,
-                    region,
-                    gender: genderLabel,
-                    genderCategory,
-                    genres: selectedGenres,
-                    favoriteTrack: favoriteTrack || 'Not specified',
-                    timestamp: new Date().toISOString()
-                };
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-75', 'cursor-wait');
 
-                // Save locally
-                responses.unshift(newEntry);
-                saveResponses();
+                try {
+                    const coords = await resolveLocationCoords(location, region);
 
-                // Optional Webhook POST (for GitHub Pages + Formspree/Apps Script)
-                const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
-                if (webhookUrl) {
-                    try {
-                        await fetch(webhookUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify(newEntry)
-                        });
-                    } catch (err) {
-                        console.warn('Webhook sync failed, saved locally:', err);
+                    const newEntry = {
+                        id: 'resp_' + Date.now(),
+                        location,
+                        region,
+                        coords,
+                        gender: genderLabel,
+                        genderCategory,
+                        genres: selectedGenres,
+                        favoriteTrack: favoriteTrack || 'Not specified',
+                        timestamp: new Date().toISOString()
+                    };
+
+                    // Save locally
+                    responses.unshift(newEntry);
+                    saveResponses();
+
+                    // Optional Webhook POST (for GitHub Pages + Formspree/Apps Script)
+                    const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
+                    if (webhookUrl) {
+                        try {
+                            await fetch(webhookUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                                body: JSON.stringify(newEntry)
+                            });
+                        } catch (err) {
+                            console.warn('Webhook sync failed, saved locally:', err);
+                        }
                     }
+
+                    // Reset Form
+                    e.target.reset();
+                    selfDescribeWrapper.classList.add('hidden');
+                    document.getElementById('selectedGenreCount').textContent = '0 selected';
+
+                    showToast('Thank you! Your music profile has been mapped.', 'success');
+                    switchTab('dashboard');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-75', 'cursor-wait');
                 }
-
-                // Reset Form
-                e.target.reset();
-                selfDescribeWrapper.classList.add('hidden');
-                document.getElementById('selectedGenreCount').textContent = '0 selected';
-
-                showToast('Thank you! Your music profile has been added.', 'success');
-                switchTab('dashboard');
             });
         }
 
@@ -907,7 +1124,157 @@
             }
         }
 
-        // --- 7. ANALYTICS DASHBOARD & CHARTS ---
+        // --- 7. LEAFLET BUBBLE MAP ---
+        function initBubbleMap() {
+            if (leafletMap) return;
+
+            leafletMap = L.map('listenerBubbleMap', {
+                center: [22, 10],
+                zoom: 2,
+                minZoom: 2,
+                maxZoom: 12,
+                worldCopyJump: true
+            });
+
+            updateMapTileTheme();
+            mapBubbleLayer = L.layerGroup().addTo(leafletMap);
+        }
+
+        function updateMapTileTheme() {
+            if (!leafletMap) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            const tileUrl = isDark
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+            if (mapTileLayer) {
+                leafletMap.removeLayer(mapTileLayer);
+            }
+
+            mapTileLayer = L.tileLayer(tileUrl, {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(leafletMap);
+        }
+
+        function renderBubbleMap(data) {
+            if (!leafletMap) initBubbleMap();
+            mapBubbleLayer.clearLayers();
+
+            const emptyOverlay = document.getElementById('mapEmptyOverlay');
+            const countBadge = document.getElementById('mapLocationCountBadge');
+            const legendContainer = document.getElementById('mapGenreLegend');
+
+            if (data.length === 0) {
+                emptyOverlay.classList.remove('hidden');
+                countBadge.textContent = '0 locations plotted';
+                legendContainer.innerHTML = `<span class="text-slate-400 italic">Legend appears once responses are submitted.</span>`;
+                return;
+            }
+
+            emptyOverlay.classList.add('hidden');
+
+            // Group filtered responses by normalized location name
+            const locationGroups = {};
+            data.forEach(item => {
+                const key = item.location.toLowerCase().trim();
+                if (!locationGroups[key]) {
+                    const coords = Array.isArray(item.coords) && item.coords.length === 2
+                        ? item.coords
+                        : (lookupBuiltinCoords(item.location) || getJitteredRegionCoords(item.region, item.location));
+
+                    locationGroups[key] = {
+                        displayName: item.location,
+                        region: item.region,
+                        coords,
+                        listenerCount: 0,
+                        genreTally: {}
+                    };
+                }
+                const group = locationGroups[key];
+                group.listenerCount += 1;
+                (item.genres || []).forEach(g => {
+                    group.genreTally[g] = (group.genreTally[g] || 0) + 1;
+                });
+            });
+
+            const groups = Object.values(locationGroups);
+            countBadge.textContent = `${groups.length} location${groups.length === 1 ? '' : 's'} plotted`;
+
+            const activeTopGenres = new Set();
+
+            groups.forEach(group => {
+                const sortedGenres = Object.entries(group.genreTally).sort((a, b) => b[1] - a[1]);
+                const topGenre = sortedGenres[0] ? sortedGenres[0][0] : 'Pop';
+                const topGenreVotes = sortedGenres[0] ? sortedGenres[0][1] : 0;
+                const topSharePct = Math.round((topGenreVotes / group.listenerCount) * 100);
+                const bubbleColor = GENRE_COLOR_MAP[topGenre] || '#8b5cf6';
+
+                activeTopGenres.add(topGenre);
+
+                // Scale radius smoothly between 10px and 32px based on listener count
+                const radius = Math.min(32, Math.max(10, 8 + Math.sqrt(group.listenerCount) * 5));
+
+                const marker = L.circleMarker(group.coords, {
+                    radius,
+                    fillColor: bubbleColor,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 0.95,
+                    fillOpacity: 0.78
+                });
+
+                const top3BreakdownHtml = sortedGenres.slice(0, 3).map(([gName, count]) => {
+                    const c = GENRE_COLOR_MAP[gName] || '#8b5cf6';
+                    return `
+                        <div class="flex items-center justify-between gap-3 text-[11px] py-0.5">
+                            <span class="flex items-center gap-1.5">
+                                <span style="background:${c}" class="w-2 h-2 rounded-full inline-block"></span>
+                                <span>${escapeHtml(gName)}</span>
+                            </span>
+                            <span class="font-semibold">${count}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                const popupHtml = `
+                    <div class="min-w-[200px] p-1">
+                        <div class="font-bold text-sm leading-tight">${escapeHtml(group.displayName)}</div>
+                        <div class="text-[11px] opacity-70 mb-2">${escapeHtml(group.region)} • ${group.listenerCount} listener${group.listenerCount === 1 ? '' : 's'}</div>
+                        <div class="p-2 rounded-lg mb-2" style="background: ${bubbleColor}22; border: 1px solid ${bubbleColor}55;">
+                            <div class="text-[10px] uppercase tracking-wider font-bold opacity-75">#1 Most Popular Genre</div>
+                            <div class="font-bold text-xs mt-0.5" style="color: ${bubbleColor};">
+                                ${escapeHtml(topGenre)} (${topSharePct}%)
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-200/30 pt-1.5">
+                            <div class="text-[10px] uppercase tracking-wider font-semibold opacity-65 mb-1">Top Genres Here</div>
+                            ${top3BreakdownHtml}
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupHtml);
+                marker.addTo(mapBubbleLayer);
+            });
+
+            // Render color legend for active #1 genres on the map
+            legendContainer.innerHTML = `
+                <span class="font-bold uppercase tracking-wider text-[10px] text-slate-500 dark:text-slate-400">Dominant Genre Legend:</span>
+                ${Array.from(activeTopGenres).map(gName => {
+                    const color = GENRE_COLOR_MAP[gName] || '#8b5cf6';
+                    return `
+                        <span class="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                            <span class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${color};"></span>
+                            <span>${escapeHtml(gName)}</span>
+                        </span>
+                    `;
+                }).join('')}
+            `;
+        }
+
+        // --- 8. ANALYTICS DASHBOARD & CHARTS ---
         function getFilteredResponses() {
             const regionFilter = document.getElementById('filterRegion').value;
             const genderFilter = document.getElementById('filterGender').value;
@@ -928,6 +1295,7 @@
         function updateDashboard() {
             const filtered = getFilteredResponses();
             updateKPIs(filtered);
+            renderBubbleMap(filtered);
             renderCharts(filtered);
             renderTable(filtered);
         }
@@ -1125,7 +1493,7 @@
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="py-8 text-center text-slate-500 dark:text-slate-400">
-                            No submissions yet. Switch to "Take Survey" to add the first entry!
+                            No submissions match the selected filters.
                         </td>
                     </tr>
                 `;
