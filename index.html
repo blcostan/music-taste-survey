@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonicPulse — Global Music Taste & Demographics Survey</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Data Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar and subtle transitions */
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .genre-checkbox:checked + label {
+            background-color: #7c3aed;
+            color: #ffffff;
+            border-color: #7c3aed;
+            box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
+            transform: translateY(-1px);
+        }
+        .dark .genre-checkbox:checked + label {
+            background-color: #8b5cf6;
+            border-color: #8b5cf6;
+            box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.35);
+        }
+        .glass-card {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        @keyframes pulse-eq {
+            0%, 100% { height: 6px; }
+            50% { height: 18px; }
+        }
+        .eq-bar:nth-child(1) { animation: pulse-eq 0.9s ease-in-out infinite; }
+        .eq-bar:nth-child(2) { animation: pulse-eq 0.6s ease-in-out infinite 0.2s; }
+        .eq-bar:nth-child(3) { animation: pulse-eq 1.1s ease-in-out infinite 0.1s; }
+        .eq-bar:nth-child(4) { animation: pulse-eq 0.7s ease-in-out infinite 0.3s; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Toast Notification Container (Replaces alert) -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 glass-card">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25">
+                    <div class="flex items-end gap-0.5 h-5">
+                        <span class="eq-bar w-1 bg-white rounded-full"></span>
+                        <span class="eq-bar w-1 bg-white rounded-full"></span>
+                        <span class="eq-bar w-1 bg-white rounded-full"></span>
+                        <span class="eq-bar w-1 bg-white rounded-full"></span>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-lg sm:text-xl tracking-tight leading-none">SonicPulse</h1>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Music Demographics & Taste Lab</p>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs (Desktop & Mobile) -->
+            <nav class="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                <button id="tabSurveyBtn" onclick="switchTab('survey')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="disc-3" class="w-4 h-4"></i>
+                    <span>Take Survey</span>
+                </button>
+                <button id="tabDashboardBtn" onclick="switchTab('dashboard')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    <span>Analytics</span>
+                    <span id="navBadgeCount" class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-brand-100 dark:bg-brand-900/60 text-brand-700 dark:text-brand-300 font-bold">0</span>
+                </button>
+            </nav>
+
+            <!-- Action Controls: GitHub Setup Guide + Theme Toggle -->
+            <div class="flex items-center gap-2">
+                <button onclick="openSetupModal()" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white dark:bg-slate-800 dark:hover:bg-slate-700 hover:bg-slate-800 transition-colors border border-slate-700/50">
+                    <i data-lucide="github" class="w-3.5 h-3.5"></i>
+                    <span>GitHub Setup Guide</span>
+                </button>
+                <button onclick="openSetupModal()" title="GitHub Setup Guide" class="sm:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="github" class="w-4 h-4"></i>
+                </button>
+                <button id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle Dark Mode" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800 transition-colors">
+                    <i id="themeIconSun" data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+                    <i id="themeIconMoon" data-lucide="moon" class="w-4 h-4 block dark:hidden text-slate-700"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+
+        <!-- ==================== TAB 1: SURVEY FORM ==================== -->
+        <section id="surveyView" class="max-w-3xl mx-auto">
+            <!-- Hero Banner -->
+            <div class="text-center mb-8">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800/60 mb-3">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Community Soundscape Study
+                </span>
+                <h2 class="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    What does your corner of the world sound like?
+                </h2>
+                <p class="mt-2.5 text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
+                    Help map how musical tastes intersect with geography and identity. Your response updates the live analytics dashboard immediately.
+                </p>
+            </div>
+
+            <!-- Survey Card -->
+            <form id="musicSurveyForm" novalidate class="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none p-5 sm:p-8 space-y-8">
+                
+                <!-- Section 1: Location -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                            01. Where are you tuning in from?
+                        </label>
+                        <button type="button" onclick="autoDetectRegion()" class="text-xs font-medium text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 flex items-center gap-1 transition-colors">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Detect Timezone Region
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="locationInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                                City & Country <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="locationInput" name="location" required placeholder="e.g., Toronto, Canada or Tokyo, Japan"
+                                    class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                                <i data-lucide="globe" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="regionSelect" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                                Geographic Region <span class="text-rose-500">*</span>
+                            </label>
+                            <select id="regionSelect" name="region" required
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                                <option value="" disabled selected>Select your region...</option>
+                                <option value="North America">North America</option>
+                                <option value="Europe">Europe</option>
+                                <option value="Asia-Pacific">Asia-Pacific</option>
+                                <option value="Latin America & Caribbean">Latin America & Caribbean</option>
+                                <option value="Middle East & Africa">Middle East & Africa</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-slate-200 dark:border-slate-800">
+
+                <!-- Section 2: Inclusive Gender Identity -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                            02. Gender Identity <span class="text-rose-500">*</span>
+                        </label>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select the option that best describes how you identify.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5" id="genderOptionsContainer">
+                        <!-- Radio Options -->
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Woman" class="peer sr-only" required>
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Woman</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center peer-checked:border-brand-500"></span>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Man" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Man</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Non-binary" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Non-binary</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Genderqueer" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Genderqueer</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Prefer to self-describe" id="selfDescribeRadio" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Self-describe</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="genderIdentity" value="Prefer not to say" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-950/60 peer-checked:border-brand-500 peer-checked:bg-brand-50/80 dark:peer-checked:bg-brand-950/50 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 text-sm font-medium transition-all flex items-center justify-between">
+                                <span>Prefer not to say</span>
+                                <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Conditional Self-Describe Input -->
+                    <div id="selfDescribeWrapper" class="hidden pt-1 transition-all">
+                        <label for="selfDescribeInput" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Please share how you describe your gender identity:
+                        </label>
+                        <input type="text" id="selfDescribeInput" placeholder="Enter your gender identity..."
+                            class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-brand-400 dark:border-brand-600 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                </div>
+
+                <hr class="border-slate-200 dark:border-slate-800">
+
+                <!-- Section 3: Favorite Music Genres (Multi-select Pills) -->
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <label class="block text-sm font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                                03. Favorite Music Genres <span class="text-rose-500">*</span>
+                            </label>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select all genres you regularly listen to (pick at least 1).</p>
+                        </div>
+                        <span id="selectedGenreCount" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            0 selected
+                        </span>
+                    </div>
+
+                    <div id="genrePillsGrid" class="flex flex-wrap gap-2.5">
+                        <!-- Genre pills populated by JS -->
+                    </div>
+                </div>
+
+                <hr class="border-slate-200 dark:border-slate-800">
+
+                <!-- Section 4: Favorite Artist / Song -->
+                <div class="space-y-3">
+                    <label for="favoriteTrackInput" class="block text-sm font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                        04. On Heavy Rotation (Optional)
+                    </label>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Share a favorite artist, album, or track you're loving right now.</p>
+                    <div class="relative">
+                        <input type="text" id="favoriteTrackInput" name="favoriteTrack" placeholder="e.g., Frank Ocean — Blonde, or Rosalía"
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                        <i data-lucide="music" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+                    </div>
+                </div>
+
+                <!-- Optional Webhook Endpoint Indicator -->
+                <div id="activeEndpointBanner" class="hidden p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                    <span class="flex items-center gap-2 font-medium">
+                        <i data-lucide="cloud-check" class="w-4 h-4 text-emerald-500"></i>
+                        Connected to live backend webhook — submissions sync automatically!
+                    </span>
+                    <button type="button" onclick="openSetupModal()" class="underline font-semibold">Configure</button>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500 shrink-0"></i>
+                        Anonymous & stored locally in your browser (or your custom backend).
+                    </p>
+                    <button type="submit" id="submitSurveyBtn" class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-fuchsia-600 hover:from-brand-500 hover:to-fuchsia-500 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                        <span>Submit & View Results</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ==================== TAB 2: ANALYTICS DASHBOARD ==================== -->
+        <section id="dashboardView" class="hidden space-y-6">
+            <!-- Top Dashboard Header & Export Actions -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                <div>
+                    <h2 class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>Global Listening Analytics</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">Live</span>
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Explore how music preferences vary across regions and gender identities.
+                    </p>
+                </div>
+
+                <!-- Action Buttons: Export CSV / JSON / Reset -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="exportData('csv')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-500"></i>
+                        <span>Export CSV</span>
+                    </button>
+                    <button onclick="exportData('json')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+                        <i data-lucide="file-json" class="w-4 h-4 text-amber-500"></i>
+                        <span>Export JSON</span>
+                    </button>
+                    <button onclick="resetToSampleData()" title="Reset to default sample dataset" class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors flex items-center gap-1">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Reset Demo</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Filter Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <div>
+                    <label for="filterRegion" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Filter by Region</label>
+                    <select id="filterRegion" onchange="updateDashboard()" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="ALL">All Regions</option>
+                        <option value="North America">North America</option>
+                        <option value="Europe">Europe</option>
+                        <option value="Asia-Pacific">Asia-Pacific</option>
+                        <option value="Latin America & Caribbean">Latin America & Caribbean</option>
+                        <option value="Middle East & Africa">Middle East & Africa</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filterGender" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Filter by Gender Identity</label>
+                    <select id="filterGender" onchange="updateDashboard()" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="ALL">All Identities</option>
+                        <option value="Woman">Woman</option>
+                        <option value="Man">Man</option>
+                        <option value="Non-binary">Non-binary</option>
+                        <option value="Genderqueer">Genderqueer</option>
+                        <option value="Self-described">Self-described</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="clearFilters()" class="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                        Clear Active Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Summary Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Respondents</span>
+                        <i data-lucide="users" class="w-4 h-4 text-brand-500"></i>
+                    </div>
+                    <p id="kpiTotalRespondents" class="font-display text-2xl sm:text-3xl font-extrabold">0</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Matching current filter</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Top Genre</span>
+                        <i data-lucide="flame" class="w-4 h-4 text-fuchsia-500"></i>
+                    </div>
+                    <p id="kpiTopGenre" class="font-display text-xl sm:text-2xl font-extrabold truncate">—</p>
+                    <p id="kpiTopGenreShare" class="text-xs text-slate-500 dark:text-slate-400 mt-1">0% of listeners</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Top Region</span>
+                        <i data-lucide="globe-2" class="w-4 h-4 text-cyan-500"></i>
+                    </div>
+                    <p id="kpiTopRegion" class="font-display text-xl sm:text-2xl font-extrabold truncate">—</p>
+                    <p id="kpiUniqueCities" class="text-xs text-slate-500 dark:text-slate-400 mt-1">0 cities represented</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Avg Genres / User</span>
+                        <i data-lucide="layers" class="w-4 h-4 text-emerald-500"></i>
+                    </div>
+                    <p id="kpiAvgGenres" class="font-display text-2xl sm:text-3xl font-extrabold">0.0</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Eclecticism index</p>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Overall Genre Popularity -->
+                <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-display font-bold text-base sm:text-lg">Overall Genre Popularity</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Total listener selections across filtered responses</p>
+                    </div>
+                    <div class="relative flex-grow min-h-[280px] w-full">
+                        <canvas id="genreBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Top Genres by Gender Identity (Grouped Bar) -->
+                <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-display font-bold text-base sm:text-lg">Top 6 Genres by Gender Identity</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Comparative breakdown across gender identities</p>
+                    </div>
+                    <div class="relative flex-grow min-h-[280px] w-full">
+                        <canvas id="genderGenreChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 3: Genre Distribution by Region -->
+                <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-display font-bold text-base sm:text-lg">Regional Genre Breakdown</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Top 5 genres stacked across geographic regions</p>
+                    </div>
+                    <div class="relative flex-grow min-h-[280px] w-full">
+                        <canvas id="regionGenreChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 4: Respondent Demographics (Doughnut) -->
+                <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-display font-bold text-base sm:text-lg">Respondent Identity Breakdown</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Share of survey participants by gender identity</p>
+                    </div>
+                    <div class="relative flex-grow min-h-[280px] w-full flex items-center justify-center">
+                        <canvas id="demographicsDoughnutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Submissions Feed Table -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                <div class="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="font-display font-bold text-base sm:text-lg">Recent Listener Submissions</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Latest entries stored in your dataset</p>
+                    </div>
+                    <span id="tableCountLabel" class="text-xs font-medium text-slate-500 dark:text-slate-400">Showing latest entries</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <th class="py-3.5 px-4 sm:px-6">Location</th>
+                                <th class="py-3.5 px-4">Gender Identity</th>
+                                <th class="py-3.5 px-4">Favorite Genres</th>
+                                <th class="py-3.5 px-4 sm:px-6">On Heavy Rotation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissionsTableBody" class="divide-y divide-slate-200/70 dark:divide-slate-800 text-xs sm:text-sm">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200/80 dark:border-slate-800/80 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <p>SonicPulse Music Research App • Ready for static deployment on <strong class="text-slate-700 dark:text-slate-300">GitHub Pages</strong>.</p>
+            <div class="flex items-center gap-4">
+                <button onclick="openSetupModal()" class="hover:text-brand-600 dark:hover:text-brand-400 font-medium underline">Connect Live Backend</button>
+                <button onclick="switchTab('survey')" class="hover:text-brand-600 dark:hover:text-brand-400 font-medium">Submit Response</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== MODAL: GITHUB PAGES + BACKEND SETUP GUIDE ==================== -->
+    <div id="setupModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-8">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400">
+                        <i data-lucide="github" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-bold text-base sm:text-lg">GitHub Pages + Free Backend Guide</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Collect real responses from visitors worldwide</p>
+                    </div>
+                </div>
+                <button onclick="closeSetupModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-sm text-slate-600 dark:text-slate-300">
+                <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    <strong>Why do you need a backend?</strong> GitHub Pages hosts static HTML/JS files. Without a backend endpoint, <code class="font-mono bg-amber-100 dark:bg-amber-900/60 px-1 rounded">localStorage</code> only saves data on each individual visitor's own browser. Connect one of the free services below to aggregate everyone's responses!
+                </div>
+
+                <!-- Step 1: Deploying to GitHub Pages -->
+                <div class="space-y-2">
+                    <h4 class="font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center">1</span>
+                        Host this file on GitHub Pages (2 minutes)
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-1 text-xs sm:text-sm pl-1">
+                        <li>Create a new public repository on GitHub (e.g., <code class="font-mono text-brand-600 dark:text-brand-400">music-taste-survey</code>).</li>
+                        <li>Upload this file and name it <code class="font-mono text-brand-600 dark:text-brand-400">index.html</code>.</li>
+                        <li>Go to <strong>Settings → Pages</strong>, set Source to <strong>Deploy from a branch</strong> (<code class="font-mono">main</code> / <code class="font-mono">/root</code>), and click <strong>Save</strong>.</li>
+                    </ol>
+                </div>
+
+                <!-- Step 2: Free Backend Options -->
+                <div class="space-y-3">
+                    <h4 class="font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center">2</span>
+                        Choose a Free Backend Service
+                    </h4>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
+                            <p class="font-bold text-slate-900 dark:text-white mb-1">Option A: Formspree</p>
+                            <p class="text-slate-500 dark:text-slate-400">Create a free form at <strong>formspree.io</strong>, copy your endpoint URL (<code class="font-mono">https://formspree.io/f/xyz</code>), and paste it below.</p>
+                        </div>
+                        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
+                            <p class="font-bold text-slate-900 dark:text-white mb-1">Option B: Google Sheets</p>
+                            <p class="text-slate-500 dark:text-slate-400">Open a Google Sheet → <strong>Extensions → Apps Script</strong>, deploy a <code class="font-mono">doPost(e)</code> web app, and paste the Web App URL below.</p>
+                        </div>
+                        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
+                            <p class="font-bold text-slate-900 dark:text-white mb-1">Option C: Supabase</p>
+                            <p class="text-slate-500 dark:text-slate-400">Create a free Postgres table in <strong>supabase.com</strong> and use its REST API URL (<code class="font-mono">/rest/v1/responses</code>) with your anon key.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Webhook Connector Form -->
+                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                    <label for="webhookUrlInput" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Optional: Live POST Webhook URL (Formspree / Google Apps Script)
+                    </label>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        When set, every survey submission will automatically send a JSON <code class="font-mono">POST</code> request to your URL in addition to updating the dashboard.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="url" id="webhookUrlInput" placeholder="https://formspree.io/f/your-form-id"
+                            class="flex-grow px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                        <button type="button" onclick="saveWebhookUrl()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition-colors shrink-0">
+                            Save Endpoint
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex justify-end">
+                <button onclick="closeSetupModal()" class="px-5 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+    <script>
+        // --- 1. CONSTANTS & CONFIGURATION ---
+        const STORAGE_KEY = 'sonicpulse_survey_responses_v1';
+        const WEBHOOK_KEY = 'sonicpulse_webhook_url_v1';
+        const THEME_KEY = 'sonicpulse_theme_v1';
+
+        const MUSIC_GENRES = [
+            { id: 'pop', label: 'Pop', icon: '✨' },
+            { id: 'hiphop', label: 'Hip-Hop / Rap', icon: '🎤' },
+            { id: 'rock', label: 'Rock', icon: '🎸' },
+            { id: 'indie', label: 'Indie / Alternative', icon: '🎧' },
+            { id: 'electronic', label: 'Electronic / EDM', icon: '🎛️' },
+            { id: 'rnb', label: 'R&B / Soul', icon: '💜' },
+            { id: 'country', label: 'Country', icon: '🤠' },
+            { id: 'jazz', label: 'Jazz', icon: '🎷' },
+            { id: 'classical', label: 'Classical', icon: '🎻' },
+            { id: 'metal', label: 'Metal', icon: '🤘' },
+            { id: 'latin', label: 'Latin', icon: '💃' },
+            { id: 'kpop', label: 'K-Pop', icon: '🫰' },
+            { id: 'afrobeats', label: 'Afrobeats', icon: '🥁' },
+            { id: 'folk', label: 'Folk / Acoustic', icon: '🪕' },
+            { id: 'reggae', label: 'Reggae / Dancehall', icon: '🌴' }
+        ];
+
+        // Realistic pre-populated sample dataset so charts look rich immediately
+        const SAMPLE_DATA = [
+            { id: 's1', location: 'New York, USA', region: 'North America', gender: 'Woman', genderCategory: 'Woman', genres: ['Pop', 'R&B / Soul', 'Indie / Alternative'], favoriteTrack: 'SZA — Snooze', timestamp: '2026-11-18T14:20:00Z' },
+            { id: 's2', location: 'London, UK', region: 'Europe', gender: 'Non-binary', genderCategory: 'Non-binary', genres: ['Electronic / EDM', 'Indie / Alternative', 'Pop'], favoriteTrack: 'Fred again.. — Danielle', timestamp: '2026-11-18T16:45:00Z' },
+            { id: 's3', location: 'Seoul, South Korea', region: 'Asia-Pacific', gender: 'Woman', genderCategory: 'Woman', genres: ['K-Pop', 'Pop', 'R&B / Soul'], favoriteTrack: 'NewJeans — Super Shy', timestamp: '2026-11-19T03:10:00Z' },
+            { id: 's4', location: 'Austin, USA', region: 'North America', gender: 'Man', genderCategory: 'Man', genres: ['Country', 'Rock', 'Folk / Acoustic'], favoriteTrack: 'Zach Bryan — Something in the Orange', timestamp: '2026-11-19T11:05:00Z' },
+            { id: 's5', location: 'Berlin, Germany', region: 'Europe', gender: 'Genderqueer', genderCategory: 'Genderqueer', genres: ['Electronic / EDM', 'Metal', 'Indie / Alternative'], favoriteTrack: 'Peggy Gou — (It Goes Like) Nanana', timestamp: '2026-11-19T18:30:00Z' },
+            { id: 's6', location: 'Mexico City, Mexico', region: 'Latin America & Caribbean', gender: 'Man', genderCategory: 'Man', genres: ['Latin', 'Hip-Hop / Rap', 'Reggae / Dancehall'], favoriteTrack: 'Bad Bunny — Monaco', timestamp: '2026-11-20T01:15:00Z' },
+            { id: 's7', location: 'Lagos, Nigeria', region: 'Middle East & Africa', gender: 'Woman', genderCategory: 'Woman', genres: ['Afrobeats', 'R&B / Soul', 'Pop'], favoriteTrack: 'Tems — Love Me JeJe', timestamp: '2026-11-20T09:50:00Z' },
+            { id: 's8', location: 'Toronto, Canada', region: 'North America', gender: 'Man', genderCategory: 'Man', genres: ['Hip-Hop / Rap', 'R&B / Soul', 'Jazz'], favoriteTrack: 'Kendrick Lamar — Not Like Us', timestamp: '2026-11-20T15:40:00Z' },
+            { id: 's9', location: 'Tokyo, Japan', region: 'Asia-Pacific', gender: 'Non-binary', genderCategory: 'Non-binary', genres: ['Jazz', 'Classical', 'Electronic / EDM'], favoriteTrack: 'Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', timestamp: '2026-11-20T22:10:00Z' },
+            { id: 's10', location: 'Stockholm, Sweden', region: 'Europe', gender: 'Woman', genderCategory: 'Woman', genres: ['Pop', 'Metal', 'Indie / Alternative'], favoriteTrack: 'Robyn — Dancing On My Own', timestamp: '2026-11-21T08:25:00Z' },
+            { id: 's11', location: 'São Paulo, Brazil', region: 'Latin America & Caribbean', gender: 'Woman', genderCategory: 'Woman', genres: ['Latin', 'Pop', 'Electronic / EDM'], favoriteTrack: 'Anitta — Envolver', timestamp: '2026-11-21T13:12:00Z' },
+            { id: 's12', location: 'Atlanta, USA', region: 'North America', gender: 'Man', genderCategory: 'Man', genres: ['Hip-Hop / Rap', 'R&B / Soul'], favoriteTrack: 'OutKast — Aquemini', timestamp: '2026-11-21T19:00:00Z' },
+            { id: 's13', location: 'Melbourne, Australia', region: 'Asia-Pacific', gender: 'Agender', genderCategory: 'Self-described', genres: ['Indie / Alternative', 'Rock', 'Folk / Acoustic'], favoriteTrack: 'Courtney Barnett — Avant Gardener', timestamp: '2026-11-22T02:35:00Z' },
+            { id: 's14', location: 'Paris, France', region: 'Europe', gender: 'Prefer not to say', genderCategory: 'Prefer not to say', genres: ['Electronic / EDM', 'Jazz', 'Hip-Hop / Rap'], favoriteTrack: 'Daft Punk — Veridis Quo', timestamp: '2026-11-22T10:15:00Z' },
+            { id: 's15', location: 'Chicago, USA', region: 'North America', gender: 'Non-binary', genderCategory: 'Non-binary', genres: ['Indie / Alternative', 'Pop', 'R&B / Soul'], favoriteTrack: 'Chappell Roan — Good Luck, Babe!', timestamp: '2026-11-22T16:45:00Z' },
+            { id: 's16', location: 'Bogotá, Colombia', region: 'Latin America & Caribbean', gender: 'Man', genderCategory: 'Man', genres: ['Latin', 'Rock', 'Indie / Alternative'], favoriteTrack: 'Karol G — Provenza', timestamp: '2026-11-22T20:10:00Z' },
+            { id: 's17', location: 'Cape Town, South Africa', region: 'Middle East & Africa', gender: 'Man', genderCategory: 'Man', genres: ['Afrobeats', 'Electronic / EDM', 'Hip-Hop / Rap'], favoriteTrack: 'Black Coffee — Drive', timestamp: '2026-11-23T06:00:00Z' },
+            { id: 's18', location: 'Seattle, USA', region: 'North America', gender: 'Woman', genderCategory: 'Woman', genres: ['Rock', 'Indie / Alternative', 'Metal'], favoriteTrack: 'Nirvana — Smells Like Teen Spirit', timestamp: '2026-11-23T08:30:00Z' }
+        ];
+
+        // State Variables
+        let responses = [];
+        let charts = {};
+
+        // --- 2. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadResponses();
+            renderGenrePills();
+            setupFormListeners();
+            checkWebhookStatus();
+            updateBadgeCount();
+            lucide.createIcons();
+        });
+
+        // --- 3. THEME MANAGEMENT ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+            if (!document.getElementById('dashboardView').classList.contains('hidden')) {
+                updateDashboard(); // Re-render charts with updated text/grid colors
+            }
+        }
+
+        // --- 4. DATA PERSISTENCE ---
+        function loadResponses() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        responses = parsed;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading localStorage:', e);
+            }
+            // Fallback to realistic sample data
+            responses = [...SAMPLE_DATA];
+            saveResponses();
+        }
+
+        function saveResponses() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(responses));
+                updateBadgeCount();
+            } catch (e) {
+                console.error('Error saving to localStorage:', e);
+            }
+        }
+
+        function updateBadgeCount() {
+            const badge = document.getElementById('navBadgeCount');
+            if (badge) badge.textContent = responses.length;
+        }
+
+        function resetToSampleData() {
+            responses = [...SAMPLE_DATA];
+            saveResponses();
+            updateDashboard();
+            showToast('Dataset reset to default sample entries.', 'info');
+        }
+
+        // --- 5. UI NAVIGATION & MODALS ---
+        function switchTab(tabName) {
+            const surveyView = document.getElementById('surveyView');
+            const dashboardView = document.getElementById('dashboardView');
+            const surveyBtn = document.getElementById('tabSurveyBtn');
+            const dashboardBtn = document.getElementById('tabDashboardBtn');
+
+            const activeClasses = ['bg-white', 'dark:bg-slate-800', 'text-brand-600', 'dark:text-brand-400', 'shadow-sm'];
+            const inactiveClasses = ['text-slate-600', 'dark:text-slate-400', 'hover:text-slate-900', 'dark:hover:text-white'];
+
+            if (tabName === 'survey') {
+                surveyView.classList.remove('hidden');
+                dashboardView.classList.add('hidden');
+                surveyBtn.classList.add(...activeClasses);
+                surveyBtn.classList.remove(...inactiveClasses);
+                dashboardBtn.classList.remove(...activeClasses);
+                dashboardBtn.classList.add(...inactiveClasses);
+            } else {
+                surveyView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                dashboardBtn.classList.add(...activeClasses);
+                dashboardBtn.classList.remove(...inactiveClasses);
+                surveyBtn.classList.remove(...activeClasses);
+                surveyBtn.classList.add(...inactiveClasses);
+                updateDashboard();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openSetupModal() {
+            const modal = document.getElementById('setupModal');
+            const savedUrl = localStorage.getItem(WEBHOOK_KEY) || '';
+            document.getElementById('webhookUrlInput').value = savedUrl;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSetupModal() {
+            const modal = document.getElementById('setupModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveWebhookUrl() {
+            const url = document.getElementById('webhookUrlInput').value.trim();
+            if (url) {
+                localStorage.setItem(WEBHOOK_KEY, url);
+                showToast('Live webhook endpoint saved!', 'success');
+            } else {
+                localStorage.removeItem(WEBHOOK_KEY);
+                showToast('Webhook endpoint cleared.', 'info');
+            }
+            checkWebhookStatus();
+            closeSetupModal();
+        }
+
+        function checkWebhookStatus() {
+            const url = localStorage.getItem(WEBHOOK_KEY);
+            const banner = document.getElementById('activeEndpointBanner');
+            if (url) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        // --- 6. SURVEY FORM LOGIC ---
+        function renderGenrePills() {
+            const grid = document.getElementById('genrePillsGrid');
+            grid.innerHTML = MUSIC_GENRES.map(genre => `
+                <div>
+                    <input type="checkbox" id="genre_${genre.id}" name="genres" value="${genre.label}" class="genre-checkbox sr-only">
+                    <label for="genre_${genre.id}" class="cursor-pointer select-none inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 hover:border-brand-400 dark:hover:border-brand-500 transition-all">
+                        <span>${genre.icon}</span>
+                        <span>${genre.label}</span>
+                    </label>
+                </div>
+            `).join('');
+
+            // Listen for genre selection count updates
+            grid.querySelectorAll('input[name="genres"]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const count = grid.querySelectorAll('input[name="genres"]:checked').length;
+                    document.getElementById('selectedGenreCount').textContent = `${count} selected`;
+                });
+            });
+        }
+
+        function setupFormListeners() {
+            // Toggle self-describe text input when radio changes
+            const genderRadios = document.querySelectorAll('input[name="genderIdentity"]');
+            const selfDescribeWrapper = document.getElementById('selfDescribeWrapper');
+            const selfDescribeInput = document.getElementById('selfDescribeInput');
+
+            genderRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.value === 'Prefer to self-describe') {
+                        selfDescribeWrapper.classList.remove('hidden');
+                        selfDescribeInput.focus();
+                    } else {
+                        selfDescribeWrapper.classList.add('hidden');
+                    }
+                });
+            });
+
+            // Handle Form Submission
+            document.getElementById('musicSurveyForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const location = document.getElementById('locationInput').value.trim();
+                const region = document.getElementById('regionSelect').value;
+                const selectedGenderRadio = document.querySelector('input[name="genderIdentity"]:checked');
+                const selectedGenres = Array.from(document.querySelectorAll('input[name="genres"]:checked')).map(el => el.value);
+                const favoriteTrack = document.getElementById('favoriteTrackInput').value.trim();
+
+                // Validation with user-friendly toast messages
+                if (!location) {
+                    showToast('Please enter your city and country.', 'error');
+                    document.getElementById('locationInput').focus();
+                    return;
+                }
+                if (!region) {
+                    showToast('Please select your geographic region.', 'error');
+                    document.getElementById('regionSelect').focus();
+                    return;
+                }
+                if (!selectedGenderRadio) {
+                    showToast('Please select a gender identity option.', 'error');
+                    return;
+                }
+
+                let genderLabel = selectedGenderRadio.value;
+                let genderCategory = selectedGenderRadio.value;
+
+                if (genderLabel === 'Prefer to self-describe') {
+                    const customGender = selfDescribeInput.value.trim();
+                    if (!customGender) {
+                        showToast('Please enter your self-described gender identity.', 'error');
+                        selfDescribeInput.focus();
+                        return;
+                    }
+                    genderLabel = customGender;
+                    genderCategory = 'Self-described';
+                }
+
+                if (selectedGenres.length === 0) {
+                    showToast('Please select at least one favorite music genre.', 'error');
+                    return;
+                }
+
+                const newEntry = {
+                    id: 'resp_' + Date.now(),
+                    location,
+                    region,
+                    gender: genderLabel,
+                    genderCategory,
+                    genres: selectedGenres,
+                    favoriteTrack: favoriteTrack || 'Not specified',
+                    timestamp: new Date().toISOString()
+                };
+
+                // Save locally
+                responses.unshift(newEntry);
+                saveResponses();
+
+                // Optional Webhook POST (for GitHub Pages + Formspree/Apps Script)
+                const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
+                if (webhookUrl) {
+                    try {
+                        await fetch(webhookUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(newEntry)
+                        });
+                    } catch (err) {
+                        console.warn('Webhook sync failed, saved locally:', err);
+                    }
+                }
+
+                // Reset Form
+                e.target.reset();
+                selfDescribeWrapper.classList.add('hidden');
+                document.getElementById('selectedGenreCount').textContent = '0 selected';
+
+                showToast('Thank you! Your music profile has been added.', 'success');
+                switchTab('dashboard');
+            });
+        }
+
+        function autoDetectRegion() {
+            try {
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+                const regionSelect = document.getElementById('regionSelect');
+                const locationInput = document.getElementById('locationInput');
+
+                if (tz.startsWith('America/')) {
+                    const latAmCities = ['Mexico_City', 'Bogota', 'Sao_Paulo', 'Buenos_Aires', 'Lima', 'Santiago'];
+                    const isLatAm = latAmCities.some(city => tz.includes(city));
+                    regionSelect.value = isLatAm ? 'Latin America & Caribbean' : 'North America';
+                } else if (tz.startsWith('Europe/')) {
+                    regionSelect.value = 'Europe';
+                } else if (tz.startsWith('Asia/') || tz.startsWith('Australia/') || tz.startsWith('Pacific/')) {
+                    regionSelect.value = 'Asia-Pacific';
+                } else if (tz.startsWith('Africa/')) {
+                    regionSelect.value = 'Middle East & Africa';
+                }
+
+                const cityGuess = tz.split('/')[1]?.replace(/_/g, ' ');
+                if (cityGuess && !locationInput.value) {
+                    locationInput.value = cityGuess;
+                }
+                showToast('Region estimated from your browser timezone.', 'info');
+            } catch (e) {
+                showToast('Could not detect timezone automatically.', 'error');
+            }
+        }
+
+        // --- 7. ANALYTICS DASHBOARD & CHARTS ---
+        function getFilteredResponses() {
+            const regionFilter = document.getElementById('filterRegion').value;
+            const genderFilter = document.getElementById('filterGender').value;
+
+            return responses.filter(item => {
+                const matchRegion = regionFilter === 'ALL' || item.region === regionFilter;
+                const matchGender = genderFilter === 'ALL' || item.genderCategory === genderFilter;
+                return matchRegion && matchGender;
+            });
+        }
+
+        function clearFilters() {
+            document.getElementById('filterRegion').value = 'ALL';
+            document.getElementById('filterGender').value = 'ALL';
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const filtered = getFilteredResponses();
+            updateKPIs(filtered);
+            renderCharts(filtered);
+            renderTable(filtered);
+        }
+
+        function updateKPIs(data) {
+            document.getElementById('kpiTotalRespondents').textContent = data.length;
+
+            if (data.length === 0) {
+                document.getElementById('kpiTopGenre').textContent = 'No data';
+                document.getElementById('kpiTopGenreShare').textContent = '0% of listeners';
+                document.getElementById('kpiTopRegion').textContent = '—';
+                document.getElementById('kpiUniqueCities').textContent = '0 cities represented';
+                document.getElementById('kpiAvgGenres').textContent = '0.0';
+                return;
+            }
+
+            // Count genres
+            const genreCounts = {};
+            let totalGenreSelections = 0;
+            data.forEach(r => {
+                r.genres.forEach(g => {
+                    genreCounts[g] = (genreCounts[g] || 0) + 1;
+                    totalGenreSelections++;
+                });
+            });
+
+            const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
+            const topGenre = sortedGenres[0];
+            const sharePct = Math.round((topGenre[1] / data.length) * 100);
+
+            document.getElementById('kpiTopGenre').textContent = topGenre[0];
+            document.getElementById('kpiTopGenreShare').textContent = `${sharePct}% of filtered listeners`;
+
+            // Top Region & Unique Cities
+            const regionCounts = {};
+            const uniqueCities = new Set();
+            data.forEach(r => {
+                regionCounts[r.region] = (regionCounts[r.region] || 0) + 1;
+                uniqueCities.add(r.location.toLowerCase());
+            });
+            const topRegion = Object.entries(regionCounts).sort((a, b) => b[1] - a[1])[0];
+
+            document.getElementById('kpiTopRegion').textContent = topRegion[0];
+            document.getElementById('kpiUniqueCities').textContent = `${uniqueCities.size} unique location${uniqueCities.size === 1 ? '' : 's'}`;
+
+            // Avg genres per respondent
+            const avg = (totalGenreSelections / data.length).toFixed(1);
+            document.getElementById('kpiAvgGenres').textContent = avg;
+        }
+
+        function renderCharts(data) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#cbd5e1' : '#334155';
+            const gridColor = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(148, 163, 184, 0.2)';
+
+            // Destroy existing chart instances before re-creating
+            Object.values(charts).forEach(chart => chart && chart.destroy());
+
+            // 1. Overall Genre Popularity (Horizontal Bar)
+            const genreCounts = {};
+            MUSIC_GENRES.forEach(g => genreCounts[g.label] = 0);
+            data.forEach(r => r.genres.forEach(g => {
+                genreCounts[g] = (genreCounts[g] || 0) + 1;
+            }));
+            const sortedGenres = Object.entries(genreCounts)
+                .filter(([, count]) => count > 0)
+                .sort((a, b) => b[1] - a[1]);
+
+            charts.genreBar = new Chart(document.getElementById('genreBarChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedGenres.map(x => x[0]),
+                    datasets: [{
+                        label: 'Listeners',
+                        data: sortedGenres.map(x => x[1]),
+                        backgroundColor: 'rgba(139, 92, 246, 0.85)',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } },
+                        y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Top 6 Genres by Gender Identity (Grouped Bar)
+            const top6GenreNames = sortedGenres.slice(0, 6).map(x => x[0]);
+            const genderCategories = ['Woman', 'Man', 'Non-binary', 'Genderqueer', 'Self-described', 'Prefer not to say'];
+            const palette = ['#8b5cf6', '#06b6d4', '#ec4899', '#f59e0b', '#10b981', '#64748b'];
+
+            const genderDatasets = genderCategories.map((cat, idx) => {
+                const subset = data.filter(r => r.genderCategory === cat);
+                if (subset.length === 0) return null;
+                return {
+                    label: cat,
+                    data: top6GenreNames.map(genreName => subset.filter(r => r.genres.includes(genreName)).length),
+                    backgroundColor: palette[idx],
+                    borderRadius: 4
+                };
+            }).filter(Boolean);
+
+            charts.genderGenre = new Chart(document.getElementById('genderGenreChart'), {
+                type: 'bar',
+                data: {
+                    labels: top6GenreNames,
+                    datasets: genderDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+                        y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
+                    }
+                }
+            });
+
+            // 3. Regional Genre Breakdown (Stacked Bar)
+            const regions = ['North America', 'Europe', 'Asia-Pacific', 'Latin America & Caribbean', 'Middle East & Africa'];
+            const top5GenreNames = sortedGenres.slice(0, 5).map(x => x[0]);
+            const genreColors = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b'];
+
+            const regionDatasets = top5GenreNames.map((genreName, idx) => ({
+                label: genreName,
+                data: regions.map(reg => data.filter(r => r.region === reg && r.genres.includes(genreName)).length),
+                backgroundColor: genreColors[idx],
+                borderRadius: 4
+            }));
+
+            charts.regionGenre = new Chart(document.getElementById('regionGenreChart'), {
+                type: 'bar',
+                data: {
+                    labels: regions.map(r => r.replace(' & Caribbean', '').replace(' & Africa', '')),
+                    datasets: regionDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: { stacked: true, ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+                        y: { stacked: true, ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
+                    }
+                }
+            });
+
+            // 4. Respondent Identity Breakdown (Doughnut)
+            const activeGenderCounts = genderCategories.map(cat => ({
+                label: cat,
+                count: data.filter(r => r.genderCategory === cat).length
+            })).filter(x => x.count > 0);
+
+            charts.demographics = new Chart(document.getElementById('demographicsDoughnutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: activeGenderCounts.map(x => x.label),
+                    datasets: [{
+                        data: activeGenderCounts.map(x => x.count),
+                        backgroundColor: palette,
+                        borderColor: isDark ? '#0f172a' : '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: {
+                        legend: { position: 'right', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('submissionsTableBody');
+            const label = document.getElementById('tableCountLabel');
+            const displayRows = data.slice(0, 15);
+            label.textContent = `Showing ${displayRows.length} of ${data.length} responses`;
+
+            if (displayRows.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-slate-500 dark:text-slate-400">
+                            No submissions match the selected filters.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = displayRows.map(row => `
+                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td class="py-3.5 px-4 sm:px-6">
+                        <div class="font-semibold text-slate-900 dark:text-white">${escapeHtml(row.location)}</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">${escapeHtml(row.region)}</div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            ${escapeHtml(row.gender)}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="flex flex-wrap gap-1">
+                            ${row.genres.map(g => `
+                                <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-brand-50 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 border border-brand-200/70 dark:border-brand-800/60">
+                                    ${escapeHtml(g)}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 sm:px-6 text-slate-600 dark:text-slate-300 italic">
+                        ${escapeHtml(row.favoriteTrack)}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // --- 8. EXPORT DATA (CSV / JSON) ---
+        function exportData(format) {
+            const dataToExport = getFilteredResponses();
+            if (dataToExport.length === 0) {
+                showToast('No records available to export.', 'error');
+                return;
+            }
+
+            let content = '';
+            let mimeType = '';
+            let fileName = `sonicpulse-music-data-${new Date().toISOString().slice(0, 10)}`;
+
+            if (format === 'json') {
+                content = JSON.stringify(dataToExport, null, 2);
+                mimeType = 'application/json';
+                fileName += '.json';
+            } else {
+                const headers = ['ID', 'Location', 'Region', 'Gender Identity', 'Gender Category', 'Genres', 'Favorite Artist/Song', 'Timestamp'];
+                const csvRows = [headers.join(',')];
+                dataToExport.forEach(r => {
+                    const row = [
+                        r.id,
+                        `"${(r.location || '').replace(/"/g, '""')}"`,
+                        `"${(r.region || '').replace(/"/g, '""')}"`,
+                        `"${(r.gender || '').replace(/"/g, '""')}"`,
+                        `"${(r.genderCategory || '').replace(/"/g, '""')}"`,
+                        `"${(r.genres || []).join('; ').replace(/"/g, '""')}"`,
+                        `"${(r.favoriteTrack || '').replace(/"/g, '""')}"`,
+                        r.timestamp
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                content = csvRows.join('\n');
+                mimeType = 'text/csv;charset=utf-8;';
+                fileName += '.csv';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast(`Exported ${dataToExport.length} records as ${format.toUpperCase()}.`, 'success');
+        }
+
+        // --- 9. UTILITIES (TOASTS & SANITIZATION) ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const colors = {
+                success: 'bg-emerald-600 text-white border-emerald-500',
+                error: 'bg-rose-600 text-white border-rose-500',
+                info: 'bg-slate-900 dark:bg-slate-800 text-white border-slate-700'
+            };
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
